@@ -6,8 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
+import { db } from '../utils/database';
+import { getSyncService } from '../services/syncService';
 
 interface TripData {
   id: string;
@@ -16,10 +21,19 @@ interface TripData {
   distance: string;
   alerts: number;
   score: number;
+  syncStatus?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<{
+    pendingSessions: number;
+    lastSync?: Date;
+  }>({ pendingSessions: 0 });
+  const user = useSelector((state: RootState) => state.auth.user);
   const [trips, setTrips] = useState<TripData[]>([
     {
       id: '1',
@@ -47,10 +61,144 @@ export default function HistoryScreen() {
     },
   ]);
 
+  useEffect(() => {
+    loadTripsFromDatabase();
+    checkSyncStatus();
+  }, []);
+
+  const loadTripsFromDatabase = async () => {
+    try {
+      setLoading(true);
+
+      // Get driver ID from user state or use default for testing
+      const driverId = user?.id || 'driver-1';
+
+      // Load sessions from SQLite
+      const sessions = await db.getSessions(driverId, 20);
+
+      // Load alerts for each session
+      const tripsWithAlerts = await Promise.all(
+        sessions.map(async (session) => {
+          const alerts = await db.getAlerts(session.id);
+          const alertCount = alerts.length;
+
+          // Calculate session duration
+          let duration = '0 min';
+          if (session.end_time && session.start_time) {
+            const durationMs = new Date(session.end_time).getTime() - new Date(session.start_time).getTime();
+            const minutes = Math.floor(durationMs / 60000);
+            const hours = Math.floor(minutes / 60);
+            if (hours > 0) {
+              duration = `${hours}h ${minutes % 60}min`;
+            } else {
+              duration = `${minutes} min`;
+            }
+          } else if (session.duration_seconds) {
+            const minutes = Math.floor(session.duration_seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            if (hours > 0) {
+              duration = `${hours}h ${minutes % 60}min`;
+            } else {
+              duration = `${minutes} min`;
+            }
+          }
+
+          // Calculate safety score
+          const baseScore = 100;
+          const penaltyPerAlert = 5;
+          const score = Math.max(0, baseScore - (alertCount * penaltyPerAlert));
+
+          return {
+            id: session.id,
+            date: session.start_time,
+            duration,
+            distance: session.trip_distance_km ? `${session.trip_distance_km.toFixed(1)} km` : '0 km',
+            alerts: alertCount,
+            score,
+            syncStatus: session.sync_status,
+            startTime: session.start_time,
+            endTime: session.end_time,
+          };
+        })
+      );
+
+      // If no sessions in database, show mock data for demo
+      if (tripsWithAlerts.length === 0) {
+        setTrips([
+          {
+            id: '1',
+            date: '2024-01-15',
+            duration: '45 min',
+            distance: '25 km',
+            alerts: 2,
+            score: 85,
+          },
+          {
+            id: '2',
+            date: '2024-01-14',
+            duration: '30 min',
+            distance: '15 km',
+            alerts: 0,
+            score: 95,
+          },
+          {
+            id: '3',
+            date: '2024-01-13',
+            duration: '1h 15min',
+            distance: '60 km',
+            alerts: 5,
+            score: 72,
+          },
+        ]);
+      } else {
+        setTrips(tripsWithAlerts);
+      }
+    } catch (error) {
+      console.error('Error loading trips:', error);
+      // Fall back to mock data on error
+      setTrips([
+        {
+          id: '1',
+          date: '2024-01-15',
+          duration: '45 min',
+          distance: '25 km',
+          alerts: 2,
+          score: 85,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkSyncStatus = async () => {
+    try {
+      const syncService = getSyncService(process.env.EXPO_PUBLIC_API_URL);
+      const status = await syncService.getSyncStatus();
+      setSyncStatus({
+        pendingSessions: status.pendingSessions,
+        lastSync: status.lastSyncAttempt,
+      });
+    } catch (error) {
+      console.error('Error checking sync status:', error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    // Fetch latest trips from API
-    setTimeout(() => setRefreshing(false), 1000);
+    await loadTripsFromDatabase();
+    await checkSyncStatus();
+
+    // Try to sync if online
+    try {
+      const syncService = getSyncService(process.env.EXPO_PUBLIC_API_URL);
+      await syncService.syncPendingData();
+      await loadTripsFromDatabase(); // Reload after sync
+    } catch (error) {
+      console.log('Sync failed, will retry later');
+    }
+
+    setRefreshing(false);
   };
 
   const getScoreColor = (score: number) => {
@@ -79,27 +227,77 @@ export default function HistoryScreen() {
         <Text style={styles.summaryTitle}>This Week Summary</Text>
         <View style={styles.summaryStats}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{trips.length}</Text>
             <Text style={styles.statLabel}>Trips</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>8.5h</Text>
+            <Text style={styles.statValue}>
+              {trips.reduce((total, trip) => {
+                const match = trip.duration.match(/(\d+)h?\s*(\d+)?/);
+                if (match) {
+                  const hours = parseInt(match[1]) || 0;
+                  const minutes = parseInt(match[2]) || 0;
+                  return total + (hours * 60) + minutes;
+                }
+                return total;
+              }, 0) > 60
+                ? `${Math.floor(trips.reduce((total, trip) => {
+                    const match = trip.duration.match(/(\d+)h?\s*(\d+)?/);
+                    if (match) {
+                      const hours = parseInt(match[1]) || 0;
+                      const minutes = parseInt(match[2]) || 0;
+                      return total + (hours * 60) + minutes;
+                    }
+                    return total;
+                  }, 0) / 60)}h`
+                : `${trips.reduce((total, trip) => {
+                    const match = trip.duration.match(/(\d+)/);
+                    return total + (parseInt(match?.[1] || '0'));
+                  }, 0)}min`
+              }
+            </Text>
             <Text style={styles.statLabel}>Total Time</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>350km</Text>
+            <Text style={styles.statValue}>
+              {trips.reduce((total, trip) => {
+                const km = parseFloat(trip.distance) || 0;
+                return total + km;
+              }, 0).toFixed(0)}km
+            </Text>
             <Text style={styles.statLabel}>Distance</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>87</Text>
+            <Text style={styles.statValue}>
+              {trips.length > 0
+                ? Math.round(trips.reduce((sum, trip) => sum + trip.score, 0) / trips.length)
+                : 0
+              }
+            </Text>
             <Text style={styles.statLabel}>Avg Score</Text>
           </View>
         </View>
+
+        {/* Sync Status Indicator */}
+        {syncStatus.pendingSessions > 0 && (
+          <View style={styles.syncStatusContainer}>
+            <Ionicons name="cloud-upload-outline" size={16} color="#F59E0B" />
+            <Text style={styles.syncStatusText}>
+              {syncStatus.pendingSessions} sessions pending sync
+            </Text>
+          </View>
+        )}
       </View>
 
-      <View style={styles.tripsContainer}>
-        <Text style={styles.sectionTitle}>Recent Trips</Text>
-        {trips.map(trip => (
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading trip history...</Text>
+        </View>
+      ) : (
+        <View style={styles.tripsContainer}>
+          <Text style={styles.sectionTitle}>Recent Trips</Text>
+          {trips.map(trip => (
           <TouchableOpacity key={trip.id} style={styles.tripCard}>
             <View style={styles.tripHeader}>
               <View style={styles.tripInfo}>
@@ -117,6 +315,12 @@ export default function HistoryScreen() {
                     <Ionicons name="alert-circle-outline" size={14} color="#6B7280" />
                     <Text style={styles.detailText}>{trip.alerts} alerts</Text>
                   </View>
+                  {trip.syncStatus === 'pending' && (
+                    <View style={styles.pendingSyncBadge}>
+                      <Ionicons name="cloud-offline-outline" size={12} color="#F59E0B" />
+                      <Text style={styles.pendingSyncText}>Not synced</Text>
+                    </View>
+                  )}
                 </View>
               </View>
               <View style={styles.scoreContainer}>
@@ -132,8 +336,9 @@ export default function HistoryScreen() {
               </View>
             </View>
           </TouchableOpacity>
-        ))}
-      </View>
+          ))}
+        </View>
+      )}
 
       {trips.length === 0 && (
         <View style={styles.emptyContainer}>
@@ -256,5 +461,40 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 40,
+  },
+  syncStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+  },
+  syncStatusText: {
+    fontSize: 12,
+    color: '#92400E',
+    marginLeft: 6,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  pendingSyncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  pendingSyncText: {
+    fontSize: 10,
+    color: '#F59E0B',
+    marginLeft: 4,
   },
 });

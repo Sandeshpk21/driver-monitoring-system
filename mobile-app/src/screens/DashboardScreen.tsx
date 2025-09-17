@@ -40,6 +40,10 @@ export default function DashboardScreen() {
     navigation.navigate('Profile' as never);
   };
 
+  const handleCalibration = () => {
+    navigation.navigate('Calibration' as never);
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -109,6 +113,16 @@ export default function DashboardScreen() {
             <View style={styles.actionTextContainer}>
               <Text style={styles.actionTitle}>Profile Settings</Text>
               <Text style={styles.actionDescription}>Manage your account</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton} onPress={handleCalibration}>
+          <View style={styles.actionButtonContent}>
+            <Ionicons name="settings-outline" size={40} color="#F59E0B" />
+            <View style={styles.actionTextContainer}>
+              <Text style={styles.actionTitle}>Calibrate Detection</Text>
+              <Text style={styles.actionDescription}>Personalize drowsiness thresholds</Text>
             </View>
           </View>
         </TouchableOpacity>

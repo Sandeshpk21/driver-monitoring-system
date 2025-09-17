@@ -9,6 +9,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import MonitoringScreen from './src/screens/MonitoringScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import CalibrationScreen from './src/screens/CalibrationScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +52,11 @@ function AppNavigator() {
           name="Profile"
           component={ProfileScreen}
           options={{ title: 'Profile Settings' }}
+        />
+        <Stack.Screen
+          name="Calibration"
+          component={CalibrationScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

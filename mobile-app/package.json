@@ -33,6 +33,7 @@
     "expo": "54.0.8",
     "expo-asset": "^12.0.8",
     "expo-background-fetch": "~14.0.7",
+    "expo-battery": "^10.0.7",
     "expo-camera": "~17.0.8",
     "expo-device": "~8.0.7",
     "expo-file-system": "~19.0.14",

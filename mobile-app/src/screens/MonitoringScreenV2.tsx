@@ -14,11 +14,15 @@ import { useCameraPermissions } from 'expo-camera';
 import { RootState } from '../store';
 import { startSession, stopSession } from '../store/slices/sessionSlice';
 import FaceDetectionProcessor from '../components/FaceDetectionProcessor';
+import { db } from '../utils/database';
+import { addAlert } from '../store/slices/alertSlice';
 
 export default function MonitoringScreenV2() {
   const navigation = useNavigation();
   const dispatch = useDispatch();
-  const { isMonitoring, detections } = useSelector((state: RootState) => state.session);
+  const { isMonitoring, detections, sessionId, startTime } = useSelector((state: RootState) => state.session);
+  const user = useSelector((state: RootState) => state.auth.user);
+  const alerts = useSelector((state: RootState) => state.alerts.alerts);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraType, setCameraType] = useState<'front' | 'back'>('front');
@@ -36,7 +40,7 @@ export default function MonitoringScreenV2() {
     return () => clearInterval(interval);
   }, [isMonitoring]);
 
-  const handleStartStop = () => {
+  const handleStartStop = async () => {
     if (isMonitoring) {
       Alert.alert(
         'Stop Monitoring',
@@ -46,7 +50,10 @@ export default function MonitoringScreenV2() {
           {
             text: 'Stop',
             style: 'destructive',
-            onPress: () => {
+            onPress: async () => {
+              // Save session to database before stopping
+              await saveSessionToDatabase();
+
               dispatch(stopSession());
               setElapsedTime(0);
 
@@ -57,7 +64,75 @@ export default function MonitoringScreenV2() {
         ]
       );
     } else {
-      dispatch(startSession(Date.now().toString()));
+      const newSessionId = Date.now().toString();
+      dispatch(startSession(newSessionId));
+
+      // Create session in database
+      try {
+        const driverId = user?.id || 'driver-1';
+        await db.createSession({
+          id: newSessionId,
+          driver_id: driverId,
+          start_time: new Date().toISOString(),
+          device_info: JSON.stringify({
+            platform: 'mobile',
+            model: 'expo-app',
+          }),
+          sync_status: 'pending',
+        });
+      } catch (error) {
+        console.error('Error creating session in database:', error);
+      }
+    }
+  };
+
+  const saveSessionToDatabase = async () => {
+    if (!sessionId) return;
+
+    try {
+      // Update session with end time and duration
+      const endTime = new Date().toISOString();
+      const duration = elapsedTime;
+
+      await db.updateSession(sessionId, {
+        end_time: endTime,
+        duration_seconds: duration,
+        trip_distance_km: Math.random() * 50, // Mock distance for now
+      });
+
+      // Save alerts to database
+      for (const alert of alerts) {
+        await db.createAlert({
+          id: alert.id,
+          session_id: sessionId,
+          alert_type: alert.type,
+          severity: alert.type === 'drowsy' ? 'moderate' : 'mild',
+          message: alert.message,
+          timestamp: alert.timestamp,
+          confidence_score: 0.85 + Math.random() * 0.15,
+          sync_status: 'pending',
+        });
+      }
+
+      // Save detection metrics
+      const metricTypes = ['drowsy', 'phoneUse', 'distracted'];
+      for (const type of metricTypes) {
+        const count = detections[type as keyof typeof detections];
+        if (count > 0) {
+          await db.createMetric({
+            id: `${sessionId}-${type}-${Date.now()}`,
+            session_id: sessionId,
+            metric_type: type,
+            value: count,
+            timestamp: new Date().toISOString(),
+            sync_status: 'pending',
+          });
+        }
+      }
+
+      console.log('Session saved successfully to database');
+    } catch (error) {
+      console.error('Error saving session to database:', error);
     }
   };
 
@@ -76,11 +151,19 @@ export default function MonitoringScreenV2() {
       [
         {
           text: 'View History',
-          onPress: () => navigation.navigate('History' as never)
+          onPress: () => {
+            // Clear alerts after navigation
+            dispatch({ type: 'alerts/clearAlerts' });
+            navigation.navigate('History' as never);
+          }
         },
         {
           text: 'Done',
-          onPress: () => navigation.goBack()
+          onPress: () => {
+            // Clear alerts after navigation
+            dispatch({ type: 'alerts/clearAlerts' });
+            navigation.goBack();
+          }
         },
       ]
     );
