@@ -1,0 +1,27 @@
+{
+  "name": "driver-monitoring-system",
+  "version": "1.0.0",
+  "description": "Offline-first driver monitoring system with mobile app and web dashboard",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run web\" \"npm run mobile\"",
+    "backend": "cd backend && npm run dev",
+    "web": "cd web-dashboard && npm run dev",
+    "mobile": "cd mobile-app && npm start",
+    "install-all": "npm install && cd backend && npm install && cd ../web-dashboard && npm install && cd ../mobile-app && npm install",
+    "build": "cd backend && npm run build && cd ../web-dashboard && npm run build",
+    "start": "cd backend && npm start"
+  },
+  "keywords": [
+    "driver-monitoring",
+    "offline-first",
+    "react-native",
+    "computer-vision",
+    "mediapipe"
+  ],
+  "author": "Driver Monitoring System",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

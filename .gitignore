@@ -1,0 +1,142 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+build/
+*/dist/
+*/build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+*/.env
+*/.env.local
+*/.env.production
+*/.env.development
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Cache
+.cache/
+*/.cache/
+.npm
+.eslintcache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# React Native
+*.hmap
+*.ipa
+*.apk
+*.aab
+
+# Mobile specific
+mobile-app/ios/Pods/
+mobile-app/ios/build/
+mobile-app/android/app/build/
+mobile-app/android/.gradle/
+mobile-app/android/build/
+
+# Metro
+mobile-app/.metro-health-check*
+mobile-app/metro-cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Coverage reports
+coverage/
+*/coverage/
+
+# Docker
+.dockerignore
+
+# Expo
+mobile-app/.expo/
+mobile-app/.expo-shared/
+mobile-app/web-build/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Next.js
+web-dashboard/.next/
+web-dashboard/out/
+web-dashboard/.vercel
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Package managers lock files (keep only package-lock.json)
+pnpm-lock.yaml
+yarn.lock
+
+# Testing
+jest-cache/
+cypress/videos/
+cypress/screenshots/
+*.lcov
+
+# Security & Certificates
+*.pem
+*.crt
+*.cer
+
+# Misc
+.turbo
+.claude/
+
+# Generated files
+2025-09-16-design-an-offline-first-driver-monitoring-system-w.txt
+mobile-app/assets/generate-assets.js
+mobile-app/assets/create-assets.js
+
+# Local database files
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Python cache (for dmsv7.py)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Backup files
+*.backup
+*.bak
+*~
