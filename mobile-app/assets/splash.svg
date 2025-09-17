@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1284" height="2778" viewBox="0 0 1284 2778" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1284" height="2778" fill="#3B82F6"/>
+  <circle cx="642" cy="1200" r="200" fill="white" opacity="0.9"/>
+  <text x="642" y="1500" font-family="Arial" font-size="100" fill="white" text-anchor="middle">
+    DRIVER
+  </text>
+  <text x="642" y="1620" font-family="Arial" font-size="100" fill="white" text-anchor="middle">
+    MONITOR
+  </text>
+</svg>

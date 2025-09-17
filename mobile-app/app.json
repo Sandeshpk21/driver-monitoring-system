@@ -21,7 +21,9 @@
         "NSCameraUsageDescription": "This app needs access to camera for driver monitoring and safety detection.",
         "NSLocationWhenInUseUsageDescription": "This app needs location access to track driving sessions and provide location-based alerts.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs location access to track driving sessions and provide location-based alerts.",
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {
@@ -57,6 +59,11 @@
           "locationWhenInUseUsageDescription": "Allow Driver Monitor to use your location for trip tracking and safety features."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b0044e9c-1e81-4664-ab46-2cd2e30b5de8"
+      }
+    }
   }
 }
