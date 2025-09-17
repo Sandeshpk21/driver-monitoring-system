@@ -4,7 +4,7 @@ interface Alert {
   id: string;
   type: 'drowsy' | 'distracted' | 'phone' | 'warning';
   message: string;
-  timestamp: Date;
+  timestamp: string; // Store as ISO string for serialization
 }
 
 interface AlertState {
@@ -25,7 +25,7 @@ const alertSlice = createSlice({
       const newAlert: Alert = {
         ...action.payload,
         id: Date.now().toString(),
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(), // Store as string
       };
       state.alerts.push(newAlert);
       state.currentAlert = newAlert;

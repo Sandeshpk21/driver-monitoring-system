@@ -3,7 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 interface SessionState {
   isMonitoring: boolean;
   sessionId: string | null;
-  startTime: Date | null;
+  startTime: string | null; // Store as ISO string for serialization
   detections: {
     drowsy: number;
     distracted: number;
@@ -29,7 +29,7 @@ const sessionSlice = createSlice({
     startSession: (state, action: PayloadAction<string>) => {
       state.isMonitoring = true;
       state.sessionId = action.payload;
-      state.startTime = new Date();
+      state.startTime = new Date().toISOString(); // Store as string
       state.detections = { drowsy: 0, distracted: 0, phoneUse: 0 };
     },
     stopSession: (state) => {
